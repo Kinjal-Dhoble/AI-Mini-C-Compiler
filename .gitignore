@@ -1,0 +1,5 @@
+__pycache__/
+build/
+bench/results/
+*.bak
+*.bak[0-9]*

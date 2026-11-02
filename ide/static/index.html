@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniC Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316121F'/%3E%3Ccircle cx='16' cy='10' r='4.5' fill='%23FF5A65'/%3E%3Ccircle cx='16' cy='22' r='4.5' fill='%23A98BFF'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" data-name="vs/editor/editor.main" href="vendor/monaco/vs/editor/editor.main.css">
+</head>
+<body>
+<div id="app">
+  <header class="titlebar">
+    <div class="brand">
+      <span class="signal" aria-hidden="true"><i class="red"></i><i class="green"></i></span>
+      <span>MiniC Studio</span>
+    </div>
+    <div class="run-controls" role="toolbar" aria-label="Build and run">
+      <button id="btnCompile" class="tb" title="Compile (Ctrl+B)"><svg viewBox="0 0 16 16"><path d="M3 4h10M3 8h7M3 12h10"/></svg>Compile</button>
+      <button id="btnRun" class="tb primary" title="Build executable and run it (F5)"><svg viewBox="0 0 16 16"><path d="M5 3l8 5-8 5z" class="fill"/></svg>Run</button>
+      <button id="btnDebug" class="tb" title="Step through the program (F9)"><svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="4"/><path d="M8 5V2M4 9H1M15 9h-3M5 5L3 3M11 5l2-2"/></svg>Debug</button>
+      <label class="opt-toggle" title="Build the executable with the C compiler's -O2 optimisations"><input type="checkbox" id="optO2"> -O2</label>
+    </div>
+    <div class="title-right">
+      <label class="chip parser-chip" title="Which parser turns tokens into the syntax tree">
+        <span>Parser</span>
+        <select id="parserSelect" aria-label="Parser">
+          <option value="hand">Hand-written (top-down)</option>
+          <option value="yacc">Lex &amp; Yacc (LALR)</option>
+        </select>
+      </label>
+      <span id="toolchainChip" class="chip" title="How executables are built">…</span>
+      <label class="chip model" title="Ollama model used by the AI assistant">
+        <span id="aiDot" class="dot"></span>
+        <select id="modelSelect" aria-label="Ollama model"><option>checking Ollama…</option></select>
+      </label>
+    </div>
+  </header>
+
+  <div class="main">
+    <nav class="activity" aria-label="Views">
+      <button class="act active" data-side="explorer" title="Explorer"><svg viewBox="0 0 24 24"><path d="M4 5h6l2 2h8v12H4z"/></svg></button>
+      <button class="act" data-side="reference" title="Mini C language reference"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5"/></svg></button>
+      <button class="act" id="btnGuide" title="Guide: how to use every feature"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg></button>
+      <button class="act ai-act active" id="toggleAI" title="AI assistant"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg></button>
+    </nav>
+
+    <aside class="sidebar" id="sidebar">
+      <section class="side-view" id="side-explorer">
+        <div class="side-head"><span>Workspace</span>
+          <button class="icon-btn" id="btnNewFile" title="New file"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+          <button class="icon-btn" id="btnRefresh" title="Refresh"><svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 3v3h-3"/></svg></button>
+        </div>
+        <form id="newFileForm" class="new-file" hidden><input id="newFileName" placeholder="name.c" spellcheck="false" aria-label="New file name"></form>
+        <ul id="fileList" class="file-list"></ul>
+        <div class="side-head sub"><span>Outline</span></div>
+        <ul id="outline" class="outline"></ul>
+      </section>
+      <section class="side-view" id="side-reference" hidden>
+        <div class="side-head"><span>Mini C reference</span></div>
+        <div class="reference">
+          <p>Mini C is a teaching subset of C: <code>char short int long float double</code>, arrays and strings.</p>
+          <h4>Declare and assign</h4><pre>#define SIZE 5        // a named constant
+const int LIMIT = 100;
+int x, total = 10 + 2 * 3;
+int marks[SIZE] = {70, 85};
+x = total % 4;
+x++;  x--;  x += 2;  x *= 3;   // also -= /= %=
+if (!x) print(0);              // ! is "not"</pre>
+          <h4>Print</h4><pre>#include &lt;stdio.h&gt;   // optional, keeps it real C
+printf("Total: %d\n", x);
+printf("%d %d\n", a, b);
+print(x);      // short form: x and a new line</pre>
+          <p class="muted">printf supports text, <code>%d</code>, <code>%%</code>, <code>\n</code> and <code>\t</code>.</p>
+          <h4>Read input</h4><pre>int n;
+printf("Enter n: ");
+scanf("%d", &amp;n);          // type it in the Input box
+scanf("%d %d", &amp;a, &amp;b);  // two at once</pre>
+          <h4>Decide</h4><pre>if (x &gt;= 2 &amp;&amp; x != 5) {
+    x = x - 1;
+} else {
+    x = 0;
+}</pre>
+          <h4>Repeat</h4><pre>while (x &lt; 10) { x++; }
+for (int i = 0; i &lt; 5; i++) {
+    if (i == 1) continue;   // skip to the next turn
+    if (i == 3) break;      // leave the loop
+}
+do { x--; } while (x &gt; 0);  // runs at least once</pre>
+          <h4>Choose</h4><pre>switch (day) {
+    case 1: printf("Mon\n"); break;
+    case 6: case 7: printf("Weekend\n"); break;
+    default: printf("Other\n");
+}</pre>
+          <h4>Functions</h4><pre>int square(int v) {
+    return v * v;
+}
+void show(int v) { print(v); }
+
+show(square(4));   // call them</pre>
+          <h4>Finish</h4><pre>return x;      // main's value becomes the exit code</pre>
+          <h4>Not available</h4>
+          <p class="muted">Pointers, <code>struct</code>, <code>unsigned</code>, <code>?:</code>, bitwise operators, <code>goto</code>, <code>#if</code>, macros with parameters, <code>x++</code> inside a bigger expression.</p>
+        </div>
+      </section>
+    </aside>
+
+    <section class="center">
+      <div class="editor-plate">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <ol class="rail" id="rail" aria-label="Compiler pipeline">
+        <li data-stage="lex" data-view="tokens"><button><i></i><b>Lex</b><small></small></button></li>
+        <li data-stage="parse" data-view="ast"><button><i></i><b>Parse</b><small></small></button></li>
+        <li data-stage="semantic" data-view="problems"><button><i></i><b>Semantic</b><small></small></button></li>
+        <li data-stage="ir" data-view="ir"><button><i></i><b>IR</b><small></small></button></li>
+        <li data-stage="build" data-view="target"><button><i></i><b>Build</b><small></small></button></li>
+        <li data-stage="run" data-view="terminal"><button><i></i><b>Run</b><small></small></button></li>
+      </ol>
+      <div class="editor-wrap">
+        <div id="editor"></div>
+        <div id="debugBar" class="debug-bar" hidden role="toolbar" aria-label="Debugger">
+          <span class="dbg-label">Debugging</span>
+          <button data-dbg="back" title="Step back to the previous line (Shift+F10)">Back</button>
+          <button data-dbg="over" title="Next line in this function, running calls without stopping (F10)">Step over</button>
+          <button data-dbg="line" title="Next line, going into function calls (F11)">Step into</button>
+          <button data-dbg="out" title="Run until this function returns (Shift+F11)">Step out</button>
+          <button data-dbg="ins" title="One IR instruction">Step IR</button>
+          <button data-dbg="cont" title="Continue to the next breakpoint or the end (F8)">Continue</button>
+          <button data-dbg="restart" title="Restart">Restart</button>
+          <button data-dbg="stop" class="stop" title="Stop debugging (Shift+F5)">Stop</button>
+          <span id="dbgPos" class="dbg-pos"></span>
+        </div>
+        <div id="diffView" class="diff-view" hidden>
+          <div class="diff-head">
+            <div><strong id="diffTitle">Review change</strong>
+              <select id="refFeature" class="ref-feature" hidden aria-label="Which AI feature this answer is for">
+                <option value="fix">as a Fix errors answer</option>
+                <option value="optimize">as an Optimise answer</option>
+                <option value="docs">as a Document answer</option>
+                <option value="bugs">as a Find bugs answer</option>
+              </select>
+              <span id="diffNote" class="diff-note"></span></div>
+            <div class="diff-actions">
+              <button id="diffReject" class="btn">Discard</button>
+              <button id="diffAccept" class="btn accept">Apply to file</button>
+            </div>
+          </div>
+          <div class="diff-labels"><span>Your code</span><span id="diffRightLabel">Proposed by the AI</span></div>
+          <div id="diffEditor"></div>
+        </div>
+      </div>
+      </div>
+      <div class="resizer" id="resizer" title="Drag to resize"></div>
+      <div class="panel" id="panel">
+        <div class="panel-tabs" role="tablist">
+          <button data-view="terminal" class="active">Terminal</button>
+          <button data-view="guide">Guide</button>
+          <button data-view="problems">Problems <span class="count" id="problemCount"></span></button>
+          <button data-view="tokens">Tokens</button>
+          <button data-view="ast">AST</button>
+          <button data-view="trace">Parse trace</button>
+          <button data-view="ir">IR</button>
+          <button data-view="cfg">Control flow</button>
+          <button data-view="calls">Call graph</button>
+          <button data-view="target">Target code</button>
+          <button data-view="vars">Variables</button>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="btnClearTerm" title="Clear terminal"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </div>
+        <div class="panel-body">
+          <div class="view active" id="view-terminal">
+            <div class="stdin-bar" id="stdinBar">
+              <label for="stdinBox">Input</label>
+              <input id="stdinBox" spellcheck="false" autocomplete="off" placeholder="Numbers for scanf, separated by spaces, e.g. 3 10 20 30">
+              <span id="stdinHint" class="muted"></span>
+            </div>
+            <pre id="terminal" class="terminal"></pre>
+          </div>
+          <div class="view" id="view-guide"><div class="guide"><p class="guide-intro">Every feature in three steps. In each AI feature the model only <b>suggests</b>; the compiler <b>checks</b> before you see it.</p><div class="guide-grid">
+<section class="g-card" id="guide-start"><h4>Start here</h4><p class="g-what">The three things to try first.</p><ol><li>Open <b>hello.c</b> in Workspace and press <b>Run</b> (F5). The program is compiled, built and run; its output appears in the Terminal.</li><li>Open <b>broken.c</b>. The red squiggles and the Problems tab show <i>every</i> mistake at once, with a plain-English explanation.</li><li>Click <b>Test the referee</b> in the AI panel to watch the compiler reject wrong answers. It works even without Ollama.</li></ol></section>
+<section class="g-card" id="guide-compile"><h4>Compile and the pipeline track</h4><p class="g-what">Checks your program as you type.</p><ol><li>Type in the editor: the program is compiled half a second after you stop.</li><li>The track above the code has a lamp per stage (Lex, Parse, Semantic, IR, Build, Run). Violet = passed, red = stopped here.</li><li>Hover a squiggle for the explanation; click a lamp to see what that stage produced.</li></ol></section>
+<section class="g-card" id="guide-run"><h4>Run, with input</h4><p class="g-what">Builds a real program and runs it.</p><ol><li>If the program uses <code>scanf</code>, type the numbers in the <b>Input</b> box above the Terminal, separated by spaces (e.g. <code>3 10 20 30</code>).</li><li>Press <b>Run</b> (F5), or Enter in the Input box.</li><li>The Terminal shows the build command, the output and the exit code. Tick <b>-O2</b> to build with gcc's optimisations.</li></ol></section>
+<section class="g-card" id="guide-data"><h4>Types, arrays and strings</h4><p class="g-what">char, short, int, long, float, double, arrays and text.</p><ol><li>Arrays: <code>int marks[5] = {70, 85};</code> (indexes 0 to 4), 2-D: <code>int m[3][3];</code>, as a parameter: <code>int sum(int a[], int n)</code>.</li><li>Strings are char arrays: <code>char name[20] = "Ann";</code> with <code>strlen strcpy strcat strcmp</code>, <code>%s</code> in printf/scanf, characters like <code>'A'</code> with <code>%c</code>.</li><li>Every array access is checked when the program runs: going past the end, a string without <code>'\0'</code> or copying too much stops with a clear message instead of a crash.</li></ol></section>
+<section class="g-card" id="guide-cfeatures"><h4>C features: loops, switch, ++ and #define</h4><p class="g-what">Write it the way you would in real C.</p><ol><li>Open <b>c_features.c</b> and press <b>Run</b>: it uses <code>++</code>, <code>+=</code>, <code>!</code>, <code>break</code>, <code>continue</code>, <code>do ... while</code>, <code>switch</code>, <code>int a, b;</code>, <code>const</code> and <code>#define</code>.</li><li>Mistakes C itself allows are flagged as warnings: a stray <code>;</code> after <code>while (...)</code>, a <code>case</code> with no <code>break</code>, <code>x &lt; 0 &amp;&amp; x &gt; 100</code>, a loop counter changed inside the loop, a constant calculation that overflows.</li><li>Open <b>bug_20</b> ... <b>bug_24</b> and click <b>Find bugs</b>: running the program confirms most of them (a loop that never ends, the case that fell through, the overflowed value).</li></ol><p class="g-check"><b>Checked by the compiler:</b> thousands of random programs give the same output as gcc (<code>python tools/fuzz.py</code>).</p></section>
+<section class="g-card" id="guide-debug"><h4>Debug</h4><p class="g-what">Run the program one line at a time.</p><ol><li>Click in the margin left of a line number to set a breakpoint (red dot).</li><li>Press <b>Debug</b> (F9). Use Step over (F10), Step into (F11), Step out, Back and Continue (F8).</li><li>The <b>Variables</b> tab shows the call stack, every variable and the output so far.</li></ol></section>
+<section class="g-card" id="guide-parser"><h4>Parser choice and Parse trace</h4><p class="g-what">See the lex & yacc parser work.</p><ol><li>Set the <b>Parser</b> chip (top bar) to <b>Lex &amp; Yacc (LALR)</b>.</li><li>Open the <b>Parse trace</b> tab: every shift and reduce step, with the stack and the next token.</li><li>The badges say whether the hand-written parser built the same tree. <b>Check with flex &amp; bison</b> runs real yacc if it is installed.</li></ol></section>
+<section class="g-card" id="guide-views"><h4>Look inside the compiler</h4><p class="g-what">One tab per compiler stage.</p><ol><li><b>Tokens</b>: what the lexer read. <b>AST</b>: the syntax tree.</li><li><b>IR</b>: the three-address code; hover a line to highlight its source. <b>Control flow</b>: blocks, loops and back edges.</li><li><b>Call graph</b>: who calls whom, recursion. <b>Target code</b>: the generated C and the assembly.</li></ol></section>
+<section class="g-card" id="guide-fix"><h4>AI: Fix errors</h4><p class="g-what">For code that does not compile.</p><ol><li>Click <b>Fix errors</b>. The model gets your code plus every error the compiler found.</li><li>Watch the card: each attempt is shown, then checked.</li><li>Click <b>Review and apply</b> to see the change side by side, then <b>Apply to file</b>.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the fix must compile, keep all your functions and at least 60% of your code.</p></section>
+<section class="g-card" id="guide-optimize"><h4>AI: Optimise</h4><p class="g-what">For code that compiles.</p><ol><li>Click <b>Optimise</b>. The model gets your code and facts the compiler proved (e.g. 2 * 3 is always 6).</li><li>Each suggestion says what changes and why it is faster.</li><li>Review the side-by-side change and apply it if you like it.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the new program is run on the VM and must print and return exactly the same.</p></section>
+<section class="g-card" id="guide-docs"><h4>AI: Document</h4><p class="g-what">Beginner comments for any code, even broken code.</p><ol><li>Click <b>Document</b>. For broken code, each error gets an <code>// ERROR:</code> comment; for fixed code, <code>// FIXED:</code>.</li><li>Turn on <b>Document automatically</b> to do this after every compile (slower on a laptop).</li><li>Review and apply, or open it as a new file.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the code itself must be identical, token for token: only comments may be added.</p></section>
+<section class="g-card" id="guide-bugs"><h4>AI: Find bugs</h4><p class="g-what">Finds mistakes that compile but go wrong.</p><ol><li>Click <b>Find bugs</b>. Within a second the compiler's findings appear: rules suspect problems (including array and string mistakes such as <code>i &lt;= 5</code> on a 5-element array, <code>strcpy</code> into a too-small array or <code>==</code> on strings) and the program is <i>run</i> to confirm them (<b>confirmed by running</b>). Try the <code>bug_*.c</code> files in Workspace.</li><li>The model then adds a short verdict and explanation for each one, with the changed line(s) as the fix.</li><li>Want the whole corrected program? Click <b>Propose a full fix</b> (slower). Works without Ollama too (rules + run only).</li></ol><p class="g-check"><b>Checked by the compiler:</b> the proposed fix must compile and run without the error.</p></section>
+<section class="g-card" id="guide-refactor"><h4>AI: Refactor</h4><p class="g-what">Cleaner code with the same behaviour.</p><ol><li>Click <b>Refactor</b>. The compiler finds patterns such as a counting while loop that should be a for loop.</li><li>Each change has a <b>Review this change</b> button.</li><li>The model only writes the explanations; the compiler makes the changes.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the refactored program must print and return the same.</p></section>
+<section class="g-card" id="guide-flow"><h4>AI: Explain flow</h4><p class="g-what">Loops, calls and how fast the program is.</p><ol><li>Click <b>Explain flow</b>. The compiler finds loops, recursion and a Big-O estimate.</li><li>The model explains them and may suggest a faster algorithm.</li><li>A faster version shows its VM step count against the original.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the faster version must behave exactly like the original.</p></section>
+<section class="g-card" id="guide-referee"><h4>Test the referee</h4><p class="g-what">Proof that the compiler checks the AI.</p><ol><li>Open any program and click <b>Test the referee</b>.</li><li>Wrong answers are built from <i>your</i> code (a changed number, an off-by-one loop, a deleted line…) and judged: red = rejected.</li><li>Click <b>Try to fool it yourself</b>, edit the right-hand side, choose the feature and <b>Submit to the referee</b>.</li></ol><p class="g-check"><b>Checked by the compiler:</b> the same checks as every real AI answer.</p></section>
+<section class="g-card" id="guide-speed"><h4>If the AI is slow</h4><p class="g-what">Local models run on your own computer.</p><ol><li>Each card shows live progress: thinking, writing (characters so far), checking. Asking the same question again is instant.</li><li>Untick <b>Document automatically</b> so only the buttons you click ask the model.</li><li>Pick a smaller model in the model chip (e.g. qwen2.5-coder:3b), or run <code>ollama ps</code> to check it is on the GPU.</li></ol></section>
+</div></div></div>
+          <div class="view" id="view-problems"><ul id="problems" class="problems"></ul></div>
+          <div class="view" id="view-tokens"><div id="tokens" class="tokens"></div></div>
+          <div class="view" id="view-ast"><div id="ast" class="ast"></div></div>
+          <div class="view" id="view-trace"><div id="trace" class="trace"></div></div>
+          <div class="view" id="view-ir"><ol id="ir" class="ir"></ol></div>
+          <div class="view" id="view-cfg"><div id="cfgLegend" class="cfg-legend"></div><div id="cfg" class="cfg"></div></div>
+          <div class="view" id="view-calls"><div id="calls" class="calls"></div></div>
+          <div class="view" id="view-target">
+            <div class="subtabs"><button data-target="c" class="active">Generated C</button><button data-target="asm">Assembly</button><span id="targetInfo" class="muted"></span></div>
+            <pre id="targetCode" class="code-view"></pre>
+          </div>
+          <div class="view" id="view-vars"><div id="vars" class="vars"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="ai-panel" id="aiPanel" aria-label="AI assistant">
+      <div class="ai-head">
+        <span>AI assistant</span>
+        <span id="aiState" class="ai-state"></span>
+      </div>
+      <div class="ai-actions">
+        <button id="aiFix" class="ai-btn" disabled><b>Fix errors</b><small>Explain and correct what failed</small></button>
+        <button id="aiOpt" class="ai-btn" disabled><b>Optimise</b><small>Faster code, same output</small></button>
+        <button id="aiDocs" class="ai-btn"><b>Document</b><small>Beginner comments</small></button>
+        <button id="aiBugs" class="ai-btn" disabled><b>Find bugs</b><small>Rules, a test run, then AI</small></button>
+        <button id="aiRefactor" class="ai-btn" disabled><b>Refactor</b><small>Cleaner loops and ifs</small></button>
+        <button id="aiFlow" class="ai-btn" disabled><b>Explain flow</b><small>Loops, calls, Big-O</small></button>
+        <button id="aiReferee" class="ai-btn referee-btn" title="Works without Ollama"><b>Test the referee</b><small>Build wrong answers from this program and see the compiler reject them</small></button>
+      </div>
+      <label class="auto"><input type="checkbox" id="aiAuto" checked> Document automatically when I compile or run</label>
+      <div id="aiFeed" class="ai-feed">
+        <div class="ai-empty">
+          <p>Compile your program and the assistant writes beginner-friendly documentation for it.</p>
+          <p>If it fails to compile, you get fixes, your code with each error explained, and the corrected code with each fix marked.</p>
+          <p class="muted">Every answer is checked by the compiler before you can apply it.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <span id="sbState" class="sb-state">Ready</span>
+    <button id="sbProblems" class="sb-item" title="Show problems"></button>
+    <span class="spacer"></span>
+    <span id="sbCursor" class="sb-item"></span>
+    <span id="sbFile" class="sb-item"></span>
+    <span class="sb-item">Mini C</span>
+  </footer>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="vendor/monaco/vs/loader.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
